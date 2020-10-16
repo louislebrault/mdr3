@@ -19,6 +19,7 @@ runMDR = runTCPServer Nothing "3000" talk
     talk h = do
 	line <- hGetLine h
 	putStrLn line
+	hPutStr h (parseLine line)
 	talk h 
 
 -- from the "network-run" package.
