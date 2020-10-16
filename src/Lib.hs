@@ -12,6 +12,7 @@ import Data.ByteString.UTF8
 import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
 import System.IO
+import Data.List
 
 runMDR :: IO ()
 runMDR = runTCPServer Nothing "3000" talk
@@ -47,7 +48,7 @@ runTCPServer mhost port server = withSocketsDo $ do
         void $ forkFinally (server handle) (const $ gracefulClose conn 5000)
 
 
-parseLine :: [a] -> String -> String
+parseLine :: [String] -> String -> String
 parseLine participants line =
   let command = getCommand line in
   case command of 
@@ -60,8 +61,10 @@ getCommand :: String -> String
 getCommand line = head (words line)
 
 -- TODO: not hard coded address and port
-handleKikoo :: [a] -> String -> String
-handleKikoo participants line = "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000"
+handleKikoo :: [String] -> String -> String
+handleKikoo participants line = 
+  let participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" participants in 
+  "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000" ++ participantIps
 
 handleTavu :: String -> String
 handleTavu line = "ACK"
