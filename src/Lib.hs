@@ -51,11 +51,16 @@ parseLine line =
   let command = getCommand line in
   case command of 
     "KIKOO" -> handleKikoo line
+    "TAVU" -> handleTavu line
     _ -> "ERR \"Talk my language u foreigner\""
       
 
 getCommand :: String -> String
 getCommand line = head (words line)
 
+-- TODO: not hard coded address and port
 handleKikoo :: String -> String
-handleKikoo line = "OKLM \"SuckMyLambdaCalculus\" ( / 127.0.0.1 3000?)*"
+handleKikoo line = "OKLM \"SuckMyLambdaCalculus\" ( / 127.0.0.1:3000?)*"
+
+handleTavu :: String -> String
+handleTavu line = "ACK"
