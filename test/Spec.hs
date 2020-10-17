@@ -10,13 +10,13 @@ main = hspec $ do
   describe "parseLine" $ do
     describe "returns a text response depending on input command" $ do
      it "KIKOO" $ do
-      parseLine [] "KIKOO PAUL ASV" `shouldBe` "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000"
+      parseLine [] "KIKOO PAUL 127.0.0.3:3000 ASV" `shouldBe` (["127.0.0.3:3000"],  "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000")
 
      it "KIKOO with existing participants" $ do
-      parseLine ["127.0.0.2:3000"] "KIKOO PAUL ASV" `shouldBe` "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000 / 127.0.0.2:3000"
+      parseLine ["127.0.0.2:3000"] "KIKOO PAUL 127.0.0.3:3000 ASV" `shouldBe` (["127.0.0.2:3000", "127.0.0.3:3000"], "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000 / 127.0.0.2:3000")
 
      it "TAVU" $ do 
-      parseLine [] "TAVU \"As-tu vu les belles quenouilles ?\"" `shouldBe` "ACK"
+      parseLine [] "TAVU \"As-tu vu les belles quenouilles ?\"" `shouldBe` ([], "ACK")
 
      it "unrecognized command" $ do
-      parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` "ERR \"Talk my language u foreigner\""
+      parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], "ERR \"Talk my language u foreigner\"")

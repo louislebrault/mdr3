@@ -22,7 +22,7 @@ talk mvar h = do
     putStrLn line
     putStrLn test
     putMVar mvar "Sandun"
-    hPutStr h (parseLine [] line)
+    hPutStr h (snd (parseLine [] line))
     talk mvar h 
 
 runMDR :: IO ()
@@ -55,23 +55,26 @@ runTCPServer mhost port server mvar =
 	handle <- socketToHandle conn ReadWriteMode
 	void $ forkFinally (server mvar handle) (const $ gracefulClose conn 5000)
 
-parseLine :: [String] -> String -> String
+parseLine :: [String] -> String -> ([String], String)
 parseLine participants line =
   let command = getCommand line in
   case command of 
     "KIKOO" -> handleKikoo participants line
-    "TAVU" -> handleTavu line
-    _ -> "ERR \"Talk my language u foreigner\""
+    "TAVU" -> handleTavu participants line
+    _ -> (participants, "ERR \"Talk my language u foreigner\"")
       
 
 getCommand :: String -> String
 getCommand line = head (words line)
 
 -- TODO: not hard coded address and port
-handleKikoo :: [String] -> String -> String
-handleKikoo participants line = 
-  let participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" participants in 
-  "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000" ++ participantIps
+handleKikoo :: [String] -> String -> ([String], String)
+handleKikoo participants line =
+  let 
+      newParticipantIp = (words line)!!2
+      participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" participants
+  in 
+  ((participants ++ [newParticipantIp]), "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000" ++ participantIps)
 
-handleTavu :: String -> String
-handleTavu line = "ACK"
+handleTavu :: [String] -> String -> ([String], String)
+handleTavu participants line = (participants, "ACK")
