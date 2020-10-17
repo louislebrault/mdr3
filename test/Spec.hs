@@ -10,13 +10,13 @@ main = hspec $ do
   describe "parseLine" $ do
     describe "returns a text response depending on input command" $ do
      it "KIKOO" $ do
-      parseLine [] "KIKOO PAUL 127.0.0.3:3000 ASV" `shouldBe` (["127.0.0.3:3000"],  "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000")
+      parseLine [] "KIKOO PAUL 127.0.0.3:3000 ASV" `shouldBe` (["127.0.0.3:3000"], Just "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000")
 
      it "KIKOO with existing participants" $ do
-      parseLine ["127.0.0.2:3000"] "KIKOO PAUL 127.0.0.3:3000 ASV" `shouldBe` (["127.0.0.2:3000", "127.0.0.3:3000"], "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000 / 127.0.0.2:3000")
+      parseLine ["127.0.0.2:3000"] "KIKOO PAUL 127.0.0.3:3000 ASV" `shouldBe` (["127.0.0.2:3000", "127.0.0.3:3000"], Just "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000 / 127.0.0.2:3000")
 
      it "TAVU" $ do 
-      parseLine [] "TAVU \"As-tu vu les belles quenouilles ?\"" `shouldBe` ([], "LOL")
+      parseLine [] "TAVU \"As-tu vu les belles quenouilles ?\"" `shouldBe` ([], Just "LOL")
 
      it "WTF" $ do
       parseLine [] "WTF" `shouldBe` ([], Nothing)
@@ -25,4 +25,4 @@ main = hspec $ do
       parseLine [] "LOL" `shouldBe` ([], Nothing)
      
      it "unrecognized command" $ do
-      parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], "WTF \"Talk my language u foreigner\"")
+      parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], Just "WTF \"Talk my language u foreigner\"")

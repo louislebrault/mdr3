@@ -21,8 +21,12 @@ talk mvar h = do
     line <- hGetLine h
     participants <- takeMVar mvar 
     putStrLn line
-    putMVar mvar (fst (parseLine participants line))
-    hPutStrLn h (snd (parseLine participants line))
+    let result = parseLine participants line 
+    let answer = snd result
+    putMVar mvar (fst result)
+    case answer of 
+      Just value -> hPutStrLn h value
+      Nothing -> return ()
     talk mvar h 
 
 runMDR :: IO ()
@@ -64,29 +68,29 @@ runTCPServer mhost port server mvar =
 	void $ forkFinally (server mvar handle) (const $ gracefulClose conn 5000)
 -- 	void $ forkFinally (server mvar handle) (closeConnexion mvar (showSockAddr _peer) conn)
 
-parseLine :: [String] -> String -> ([String], String)
+parseLine :: [String] -> String -> ([String], Maybe String)
 parseLine participants line =
   let command = getCommand line in
   case command of 
     "KIKOO" -> handleKikoo participants line
     "TAVU" -> handleTavu participants line
-    "WTF" -> (participants, "")
-    "LOL" -> (participants, "")
-    _ -> (participants, "WTF \"Talk my language u foreigner\"")
+    "WTF" -> (participants, Nothing)
+    "LOL" -> (participants, Nothing)
+    _ -> (participants, Just "WTF \"Talk my language u foreigner\"")
       
 
 getCommand :: String -> String
 getCommand line = head (words line)
 
 -- TODO: not hard coded address and port
-handleKikoo :: [String] -> String -> ([String], String)
+handleKikoo :: [String] -> String -> ([String], Maybe String)
 handleKikoo participants line =
   let 
       newParticipantIp = (words line)!!2
       participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" participants
   in 
-   ((participants ++ [newParticipantIp]), "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000" ++ participantIps)
+   ((participants ++ [newParticipantIp]), Just $ "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000" ++ participantIps)
 
 
-handleTavu :: [String] -> String -> ([String], String)
-handleTavu participants line = (participants, "LOL")
+handleTavu :: [String] -> String -> ([String], Maybe String)
+handleTavu participants line = (participants, Just "LOL")
