@@ -15,23 +15,23 @@ import System.IO
 import Data.List
 import Control.Concurrent.MVar
 
-talk :: IO (MVar String) -> Handle -> IO ()
+talk :: MVar String -> Handle -> IO ()
 talk mvar h = do
     line <- hGetLine h
-    lol <- mvar
-    test <- takeMVar lol 
+    test <- takeMVar mvar 
     putStrLn line
     putStrLn test
+    putMVar mvar "Sandun"
     hPutStr h (parseLine [] line)
     talk mvar h 
 
-
-
 runMDR :: IO ()
-runMDR = runTCPServer Nothing "3000" talk (newMVar "lol")
+runMDR = do
+  mvar <- newMVar "test"
+  runTCPServer Nothing "3000" talk mvar
 
 -- from the "network-run" package.
-runTCPServer :: Maybe HostName -> ServiceName -> (IO (MVar String) -> Handle -> IO a) -> IO (MVar String) -> IO a
+runTCPServer :: Maybe HostName -> ServiceName -> (MVar String -> Handle -> IO a) -> MVar String -> IO a
 runTCPServer mhost port server mvar = 
   withSocketsDo $ do
     addr <- resolve
