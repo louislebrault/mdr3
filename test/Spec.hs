@@ -21,8 +21,8 @@ main = hspec $ do
      it "WTF" $ do
       parseLine [] "WTF" `shouldBe` ([], Nothing)
 
-     it "LOL" $do 
+     it "LOL" $ do 
       parseLine [] "LOL" `shouldBe` ([], Nothing)
-     
+
      it "unrecognized command" $ do
       parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], Just "WTF \"Talk my language u foreigner\"")
