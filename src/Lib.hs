@@ -13,19 +13,27 @@ import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
 import System.IO
 import Data.List
+import Control.Concurrent.MVar
+
+talk :: IO (MVar String) -> Handle -> IO ()
+talk mvar h = do
+    line <- hGetLine h
+    lol <- mvar
+    test <- takeMVar lol 
+    putStrLn line
+    putStrLn test
+    hPutStr h (parseLine [] line)
+    talk mvar h 
+
+
 
 runMDR :: IO ()
-runMDR = runTCPServer Nothing "3000" talk
-  where
-    talk h = do
-	line <- hGetLine h
-	putStrLn line
-	hPutStr h (parseLine [] line)
-	talk h 
+runMDR = runTCPServer Nothing "3000" talk (newMVar "lol")
 
 -- from the "network-run" package.
-runTCPServer :: Maybe HostName -> ServiceName -> (Handle -> IO a) -> IO a
-runTCPServer mhost port server = withSocketsDo $ do
+runTCPServer :: Maybe HostName -> ServiceName -> (IO (MVar String) -> Handle -> IO a) -> IO (MVar String) -> IO a
+runTCPServer mhost port server mvar = 
+  withSocketsDo $ do
     addr <- resolve
     E.bracket (open addr) close loop
   where
@@ -43,10 +51,9 @@ runTCPServer mhost port server = withSocketsDo $ do
         listen sock 1024
         return sock
     loop sock = forever $ do
-        (conn, _peer) <- accept sock
+	(conn, _peer) <- accept sock
 	handle <- socketToHandle conn ReadWriteMode
-        void $ forkFinally (server handle) (const $ gracefulClose conn 5000)
-
+	void $ forkFinally (server mvar handle) (const $ gracefulClose conn 5000)
 
 parseLine :: [String] -> String -> String
 parseLine participants line =
