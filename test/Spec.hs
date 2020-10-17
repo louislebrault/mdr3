@@ -18,5 +18,11 @@ main = hspec $ do
      it "TAVU" $ do 
       parseLine [] "TAVU \"As-tu vu les belles quenouilles ?\"" `shouldBe` ([], "LOL")
 
+     it "WTF" $ do
+      parseLine [] "WTF" `shouldBe` ([], Nothing)
+
+     it "LOL" $do 
+      parseLine [] "LOL" `shouldBe` ([], Nothing)
+     
      it "unrecognized command" $ do
       parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], "WTF \"Talk my language u foreigner\"")
