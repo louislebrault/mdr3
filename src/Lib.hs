@@ -30,6 +30,7 @@ runMDR = do
   mvar <- newMVar []
   runTCPServer Nothing "3000" talk mvar
 
+-- Does not work
 -- closeConnexion mvar address conn = do
   -- participants <- takeMVar mvar
   -- putMVar mvar $ filter (\participant -> participant == address) participants
