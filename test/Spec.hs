@@ -19,4 +19,4 @@ main = hspec $ do
       parseLine [] "TAVU \"As-tu vu les belles quenouilles ?\"" `shouldBe` ([], "ACK")
 
      it "unrecognized command" $ do
-      parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], "ERR \"Talk my language u foreigner\"")
+      parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], "WTF \"Talk my language u foreigner\"")

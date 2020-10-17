@@ -14,24 +14,30 @@ import Network.Socket.ByteString (recv, sendAll)
 import System.IO
 import Data.List
 import Control.Concurrent.MVar
+import Network.SockAddr (showSockAddr)
 
-talk :: MVar String -> Handle -> IO ()
+talk :: MVar [String] -> Handle -> IO ()
 talk mvar h = do
     line <- hGetLine h
-    test <- takeMVar mvar 
+    participants <- takeMVar mvar 
     putStrLn line
-    putStrLn test
-    putMVar mvar "Sandun"
-    hPutStr h (snd (parseLine [] line))
+    putMVar mvar (fst (parseLine participants line))
+    hPutStrLn h (snd (parseLine participants line))
     talk mvar h 
 
 runMDR :: IO ()
 runMDR = do
-  mvar <- newMVar "test"
+  mvar <- newMVar []
   runTCPServer Nothing "3000" talk mvar
 
+-- closeConnexion mvar address conn = do
+  -- participants <- takeMVar mvar
+  -- putMVar mvar $ filter (\participant -> participant == address) participants
+  -- const $ gracefulClose conn 5000 
+  
+
 -- from the "network-run" package.
-runTCPServer :: Maybe HostName -> ServiceName -> (MVar String -> Handle -> IO a) -> MVar String -> IO a
+runTCPServer :: Maybe HostName -> ServiceName -> (MVar [String] -> Handle -> IO a) -> MVar [String] -> IO a
 runTCPServer mhost port server mvar = 
   withSocketsDo $ do
     addr <- resolve
@@ -53,7 +59,9 @@ runTCPServer mhost port server mvar =
     loop sock = forever $ do
 	(conn, _peer) <- accept sock
 	handle <- socketToHandle conn ReadWriteMode
+	hSetBuffering handle LineBuffering
 	void $ forkFinally (server mvar handle) (const $ gracefulClose conn 5000)
+-- 	void $ forkFinally (server mvar handle) (closeConnexion mvar (showSockAddr _peer) conn)
 
 parseLine :: [String] -> String -> ([String], String)
 parseLine participants line =
@@ -61,7 +69,9 @@ parseLine participants line =
   case command of 
     "KIKOO" -> handleKikoo participants line
     "TAVU" -> handleTavu participants line
-    _ -> (participants, "ERR \"Talk my language u foreigner\"")
+    "WTF" -> (participants, "")
+    "LOL" -> (participants, "")
+    _ -> (participants, "WTF \"Talk my language u foreigner\"")
       
 
 getCommand :: String -> String
@@ -74,7 +84,8 @@ handleKikoo participants line =
       newParticipantIp = (words line)!!2
       participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" participants
   in 
-  ((participants ++ [newParticipantIp]), "OKLM \"SuckMyLambdaCalculus\" / 127.0.0.1:3000" ++ participantIps)
+   ((participants ++ [newParticipantIp]), "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000" ++ participantIps)
+
 
 handleTavu :: [String] -> String -> ([String], String)
-handleTavu participants line = (participants, "ACK")
+handleTavu participants line = (participants, "LOL")

@@ -25,6 +25,7 @@ dependencies:
 - network
 - utf8-string
 - hspec
+- sockaddr
 
 library:
   source-dirs: src
