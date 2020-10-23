@@ -16,6 +16,8 @@ import Data.List
 import Control.Concurrent.MVar
 import Network.SockAddr (showSockAddr)
 
+data Interlocutor = Interlocutor Handle String
+
 talk :: MVar [String] -> Handle -> IO ()
 talk mvar h = do
     line <- hGetLine h
