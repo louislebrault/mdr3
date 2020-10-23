@@ -4,7 +4,7 @@ module Lib
       getCommand,
     ) where
 
-import Control.Concurrent (forkFinally)
+import Control.Concurrent (forkFinally, forkIO)
 import qualified Control.Exception as E
 import Control.Monad (unless, forever, void)
 import qualified Data.ByteString as S
@@ -29,17 +29,18 @@ talk mvar h = do
       Nothing -> return ()
     talk mvar h 
 
+-- foutre les differents handle dans la mvar ? comme ca quand je speak j'ai plus qu'a envoyé un hPutStrLn à chacun
+speak :: IO ()
+speak = do
+  x <- hGetLine stdin
+  putStrLn ("speak" ++ x)
+  speak
+
+
 runMDR :: IO ()
 runMDR = do
   mvar <- newMVar []
   runTCPServer Nothing "3000" talk mvar
-
--- Does not work
--- closeConnexion mvar address conn = do
-  -- participants <- takeMVar mvar
-  -- putMVar mvar $ filter (\participant -> participant == address) participants
-  -- const $ gracefulClose conn 5000 
-  
 
 -- from the "network-run" package.
 runTCPServer :: Maybe HostName -> ServiceName -> (MVar [String] -> Handle -> IO a) -> MVar [String] -> IO a
@@ -60,13 +61,13 @@ runTCPServer mhost port server mvar =
         withFdSocket sock $ setCloseOnExecIfNeeded
         bind sock $ addrAddress addr
         listen sock 1024
-        return sock
+	forkIO speak 
+	return sock
     loop sock = forever $ do
 	(conn, _peer) <- accept sock
 	handle <- socketToHandle conn ReadWriteMode
 	hSetBuffering handle LineBuffering
 	void $ forkFinally (server mvar handle) (const $ gracefulClose conn 5000)
--- 	void $ forkFinally (server mvar handle) (closeConnexion mvar (showSockAddr _peer) conn)
 
 parseLine :: [String] -> String -> ([String], Maybe String)
 parseLine participants line =
