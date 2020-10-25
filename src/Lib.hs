@@ -16,8 +16,12 @@ import Data.List
 import Data.Map as M
 import Control.Concurrent.MVar
 import Network.SockAddr (showSockAddr)
+import Debug.Trace
 
-data Interlocutor = Interlocutor Handle String
+-- TODO: envoyer les messages recus au differents client connecté, envoyé les messages qu'on tape dans la console aux differents users connecté (speak, ca devrait etre facile maintenant qu'on a les
+-- handle dans le state), gérer déconnexion d'un client (viré du state)
+
+data Interlocutor = Interlocutor Handle String deriving (Show)
 
 getHandle (Interlocutor handle _) = handle
 getServerAddress (Interlocutor _ serverAddress) = serverAddress
@@ -25,17 +29,17 @@ getServerAddress (Interlocutor _ serverAddress) = serverAddress
 type State = Map String Interlocutor
 
 getServerAddresses :: State -> [String]
-getServerAddresses state = M.map getServerAddress state
+getServerAddresses state = Data.List.map getServerAddress $ Data.List.map snd (M.toList state)
 
 talk :: MVar State -> String -> Handle -> IO ()
 talk mvar address h = do
     line <- hGetLine h
     state <- takeMVar mvar 
     putStrLn line
-    let result = parseLine state address line 
-    let answer = snd result
-    -- cette ligne est plus bonne
-    putMVar mvar (fst result)
+    let result = parseLine state address line
+    let newState = fst result
+    let answer = traceShow result (snd result)
+    putMVar mvar newState
     case answer of 
       Just value -> hPutStrLn h value
       Nothing -> return ()
@@ -50,10 +54,9 @@ speak = do
 
 runMDR :: IO ()
 runMDR = do
-  state <- M.empty 
+  state <- newMVar M.empty 
   runTCPServer Nothing "3000" talk state  
 
--- from the "network-run" package.
 runTCPServer :: Maybe HostName -> ServiceName -> (MVar State -> String -> Handle -> IO a) -> MVar State -> IO a
 runTCPServer mhost port server mvar = 
   withSocketsDo $ do
@@ -79,16 +82,15 @@ runTCPServer mhost port server mvar =
 	handle <- socketToHandle conn ReadWriteMode
 	hSetBuffering handle LineBuffering
 	state <- takeMVar mvar
-	let address = getSockAddr _peer
+	let address = show _peer
 	putMVar mvar $ M.insert address (Interlocutor handle "") state
 	void $ forkFinally (server mvar address handle) (const $ gracefulClose conn 5000)
 
-getSockAddr :: SockAddr -> String
-getSockAddr _peer = showSockAddr $ getSocketName _peer
-
 parseLine :: State -> String -> String -> (State, Maybe String)
 parseLine state address line =
-  let command = getCommand line in
+  let
+    command = getCommand line
+  in
   case command of 
     "KIKOO" -> handleKikoo state address line
     "TAVU" -> handleTavu state line
@@ -99,7 +101,6 @@ parseLine state address line =
 getCommand :: String -> String
 getCommand line = head (words line)
 
--- TODO: not hard coded address and port
 handleKikoo :: State -> String -> String -> (State, Maybe String)
 handleKikoo state address line =
   let
