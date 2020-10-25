@@ -39,6 +39,8 @@ library
     , network
     , sockaddr
     , utf8-string
+    , array
+    , containers
   default-language: Haskell2010
 
 executable mdr3-exe

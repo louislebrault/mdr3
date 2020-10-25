@@ -13,25 +13,34 @@ import Network.Socket
 import Network.Socket.ByteString (recv, sendAll)
 import System.IO
 import Data.List
+import Data.Map as M
 import Control.Concurrent.MVar
 import Network.SockAddr (showSockAddr)
 
 data Interlocutor = Interlocutor Handle String
 
-talk :: MVar [String] -> Handle -> IO ()
-talk mvar h = do
+getHandle (Interlocutor handle _) = handle
+getServerAddress (Interlocutor _ serverAddress) = serverAddress
+
+type State = Map String Interlocutor
+
+getServerAddresses :: State -> [String]
+getServerAddresses state = M.map getServerAddress state
+
+talk :: MVar State -> String -> Handle -> IO ()
+talk mvar address h = do
     line <- hGetLine h
-    participants <- takeMVar mvar 
+    state <- takeMVar mvar 
     putStrLn line
-    let result = parseLine participants line 
+    let result = parseLine state address line 
     let answer = snd result
+    -- cette ligne est plus bonne
     putMVar mvar (fst result)
     case answer of 
       Just value -> hPutStrLn h value
       Nothing -> return ()
-    talk mvar h 
+    talk mvar address h 
 
--- foutre les differents handle dans la mvar ? comme ca quand je speak j'ai plus qu'a envoyé un hPutStrLn à chacun
 speak :: IO ()
 speak = do
   x <- hGetLine stdin
@@ -41,11 +50,11 @@ speak = do
 
 runMDR :: IO ()
 runMDR = do
-  mvar <- newMVar []
-  runTCPServer Nothing "3000" talk mvar
+  state <- M.empty 
+  runTCPServer Nothing "3000" talk state  
 
 -- from the "network-run" package.
-runTCPServer :: Maybe HostName -> ServiceName -> (MVar [String] -> Handle -> IO a) -> MVar [String] -> IO a
+runTCPServer :: Maybe HostName -> ServiceName -> (MVar State -> String -> Handle -> IO a) -> MVar State -> IO a
 runTCPServer mhost port server mvar = 
   withSocketsDo $ do
     addr <- resolve
@@ -69,31 +78,36 @@ runTCPServer mhost port server mvar =
 	(conn, _peer) <- accept sock
 	handle <- socketToHandle conn ReadWriteMode
 	hSetBuffering handle LineBuffering
-	void $ forkFinally (server mvar handle) (const $ gracefulClose conn 5000)
+	state <- takeMVar mvar
+	let address = getSockAddr _peer
+	putMVar mvar $ M.insert address (Interlocutor handle "") state
+	void $ forkFinally (server mvar address handle) (const $ gracefulClose conn 5000)
 
-parseLine :: [String] -> String -> ([String], Maybe String)
-parseLine participants line =
+getSockAddr :: SockAddr -> String
+getSockAddr _peer = showSockAddr $ getSocketName _peer
+
+parseLine :: State -> String -> String -> (State, Maybe String)
+parseLine state address line =
   let command = getCommand line in
   case command of 
-    "KIKOO" -> handleKikoo participants line
-    "TAVU" -> handleTavu participants line
-    "WTF" -> (participants, Nothing)
-    "LOL" -> (participants, Nothing)
-    _ -> (participants, Just "WTF \"Talk my language u foreigner\"")
-      
+    "KIKOO" -> handleKikoo state address line
+    "TAVU" -> handleTavu state line
+    "WTF" -> (state, Nothing)
+    "LOL" -> (state, Nothing)
+    _ -> (state, Just "WTF \"Talk my language u foreigner\"")
 
 getCommand :: String -> String
 getCommand line = head (words line)
 
 -- TODO: not hard coded address and port
-handleKikoo :: [String] -> String -> ([String], Maybe String)
-handleKikoo participants line =
-  let 
+handleKikoo :: State -> String -> String -> (State, Maybe String)
+handleKikoo state address line =
+  let
       newParticipantIp = (words line)!!2
-      participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" participants
+      participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" $ getServerAddresses state
+      newState = M.update (\x -> Just (Interlocutor (getHandle (state ! address)) newParticipantIp)) address state 
   in 
-   ((participants ++ [newParticipantIp]), Just $ "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000" ++ participantIps)
+   (newState, Just $ "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000" ++ participantIps)
 
-
-handleTavu :: [String] -> String -> ([String], Maybe String)
-handleTavu participants line = (participants, Just "LOL")
+handleTavu :: State -> String -> (State, Maybe String)
+handleTavu state line = (state, Just "LOL")

@@ -1,5 +1,5 @@
 import Test.Hspec
-import Lib (getCommand, parseLine)
+import Lib (getCommand, parseLine, appendArray)
 
 main :: IO ()
 main = hspec $ do 
@@ -26,3 +26,4 @@ main = hspec $ do
 
      it "unrecognized command" $ do
       parseLine [] "BLEBLE \"Lemme chat with u \"" `shouldBe` ([], Just "WTF \"Talk my language u foreigner\"")
+
