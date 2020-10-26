@@ -18,47 +18,58 @@ import Control.Concurrent.MVar
 import Network.SockAddr (showSockAddr)
 import Debug.Trace
 
--- TODO: envoyer les messages recus au differents client connecté, envoyé les messages qu'on tape dans la console aux differents users connecté (speak, ca devrait etre facile maintenant qu'on a les
--- handle dans le state), gérer déconnexion d'un client (viré du state)
+-- TODO: afficher nom devant les messages recu, permettre de se connecter à un autre server (partie client), gérer déconnexion d'un client (viré du state)
 
-data Interlocutor = Interlocutor Handle String deriving (Show)
+data Interlocutor = Interlocutor Handle String
 
 getHandle (Interlocutor handle _) = handle
 getServerAddress (Interlocutor _ serverAddress) = serverAddress
 
 type State = Map String Interlocutor
 
-getServerAddresses :: State -> [String]
-getServerAddresses state = Data.List.map getServerAddress $ Data.List.map snd (M.toList state)
+getInterlocutors :: State -> [Interlocutor]
+getInterlocutors state = Data.List.map snd (M.toList state)
 
-talk :: MVar State -> String -> Handle -> IO ()
-talk mvar address h = do
+getServerAddresses :: State -> [String]
+getServerAddresses state = Data.List.map getServerAddress $ getInterlocutors state
+
+getHandles :: State -> [Handle]
+getHandles state = Data.List.map getHandle $ Data.List.map snd (M.toList state)
+
+listenLoop :: MVar State -> String -> Handle -> IO ()
+listenLoop mvar address h = do
     line <- hGetLine h
-    state <- takeMVar mvar 
+    state <- takeMVar mvar
     putStrLn line
     let result = parseLine state address line
     let newState = fst result
-    let answer = traceShow result (snd result)
+    -- je le laisse pour la posterité en commentaire pour l'instant, le traceShow
+    -- let answer = traceShow result (snd result)
+    let answer = snd result
     putMVar mvar newState
-    case answer of 
+    case answer of
       Just value -> hPutStrLn h value
       Nothing -> return ()
-    talk mvar address h 
+    listenLoop mvar address h
 
-speak :: IO ()
-speak = do
-  x <- hGetLine stdin
-  putStrLn ("speak" ++ x)
-  speak
+speak :: MVar State -> IO ()
+speak mvar = do
+  msg <- hGetLine stdin
+  state <- takeMVar mvar
+  -- est-ce qu'on est sur de devoir le remettre dedans ?
+  putMVar mvar state
+  let handles = getHandles state
+  mapM (\handle -> hPutStrLn handle msg) handles
+  speak mvar
 
 
 runMDR :: IO ()
 runMDR = do
-  state <- newMVar M.empty 
-  runTCPServer Nothing "3000" talk state  
+  state <- newMVar M.empty
+  runTCPServer Nothing "3000" listenLoop state
 
 runTCPServer :: Maybe HostName -> ServiceName -> (MVar State -> String -> Handle -> IO a) -> MVar State -> IO a
-runTCPServer mhost port server mvar = 
+runTCPServer mhost port server mvar =
   withSocketsDo $ do
     addr <- resolve
     E.bracket (open addr) close loop
@@ -75,7 +86,7 @@ runTCPServer mhost port server mvar =
         withFdSocket sock $ setCloseOnExecIfNeeded
         bind sock $ addrAddress addr
         listen sock 1024
-	forkIO speak 
+	forkIO $ speak mvar
 	return sock
     loop sock = forever $ do
 	(conn, _peer) <- accept sock
@@ -91,7 +102,7 @@ parseLine state address line =
   let
     command = getCommand line
   in
-  case command of 
+  case command of
     "KIKOO" -> handleKikoo state address line
     "TAVU" -> handleTavu state line
     "WTF" -> (state, Nothing)
@@ -106,8 +117,8 @@ handleKikoo state address line =
   let
       newParticipantIp = (words line)!!2
       participantIps = Data.List.foldl (\acc participant -> acc ++ " / " ++ participant) "" $ getServerAddresses state
-      newState = M.update (\x -> Just (Interlocutor (getHandle (state ! address)) newParticipantIp)) address state 
-  in 
+      newState = M.update (\x -> Just (Interlocutor (getHandle (state ! address)) newParticipantIp)) address state
+  in
    (newState, Just $ "OKLM \"SuckMyLambdaCalculus\" 172.16.29.73:3000" ++ participantIps)
 
 handleTavu :: State -> String -> (State, Maybe String)
